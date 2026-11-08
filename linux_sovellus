@@ -1,0 +1,97 @@
+
+from flask import Flask
+import sqlite3
+from pathlib import Path
+
+app = Flask(__name__)
+
+# Tietokanta sijaitsee samassa kansiossa kuin sovellus
+DB_PATH = Path(__file__).resolve().parent / "laskuri.db"
+
+
+def luo_tietokanta():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS laskuri (
+                id INTEGER PRIMARY KEY,
+                kaynnit INTEGER NOT NULL
+            )
+        """)
+        conn.execute(
+            "INSERT OR IGNORE INTO laskuri (id, kaynnit) VALUES (1, 0)"
+        )
+
+
+def lisaa_kaynti():
+    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        conn.execute(
+            "UPDATE laskuri SET kaynnit = kaynnit + 1 WHERE id = 1"
+        )
+        maara = conn.execute(
+            "SELECT kaynnit FROM laskuri WHERE id = 1"
+        ).fetchone()[0]
+        return maara
+
+
+@app.route("/")
+def etusivu():
+    kaynnit = lisaa_kaynti()
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="fi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Viikon 2 Python-sovellus</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background: #eef2f7;
+                text-align: center;
+                padding: 60px 15px;
+            }}
+            main {{
+                background: white;
+                max-width: 650px;
+                margin: auto;
+                padding: 35px;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px #0002;
+            }}
+            h1 {{ color: #2455a4; }}
+            .laskuri {{
+                font-size: 55px;
+                font-weight: bold;
+                color: #16834a;
+            }}
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Viikon 2 verkkosovellus</h1>
+            <p>Tämä sivu on toteutettu Pythonilla ja Flaskilla.</p>
+
+            <h2>Sivun käyntimäärä</h2>
+            <div class="laskuri">{kaynnit}</div>
+            <p>Lataa sivu uudelleen kasvattaaksesi laskuria.</p>
+
+            <h2>Tietokanta</h2>
+            <p>Kävijämäärä tallennetaan SQLite-tietokantaan.
+            Tiedot säilyvät myös palvelimen uudelleenkäynnistyksessä.</p>
+
+            <h2>Uudelleenkäynnistystesti</h2>
+            <p>Testin tulos: ei vielä testattu.</p>
+
+            <p>
+                <a href="https://github.com/OMA-KAYTTAJA/OMA-REPO">
+                    Sovelluksen lähdekoodi GitHubissa
+                </a>
+            </p>
+        </main>
+    </body>
+    </html>
+    """
+
+
+luo_tietokanta()
