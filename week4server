@@ -1,0 +1,519 @@
+
+from flask import Flask
+import pymysql
+import os
+
+app = Flask(__name__)
+
+
+# MariaDB-yhteys Server B:n paikalliseen tietokantaan
+def hae_kaynnit():
+    conn = pymysql.connect(
+        host="localhost",
+        user="visitor_read",
+        password=os.environ["VISITOR_READ_PASSWORD"],
+        database="visitor_counter"
+    )
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT visits FROM counter WHERE id = 1"
+            )
+            return cursor.fetchone()[0]
+    finally:
+        conn.close()
+
+
+@app.route("/")
+def etusivu():
+    kaynnit = hae_kaynnit()
+
+    return f"""
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+    <title>Week 4 - Server B</title>
+
+    <style>
+.github-link {{
+    display: inline-block;
+    background-color: #FFFFFF;
+    color: #2455a4;
+    padding: 12px 24px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: bold;
+    box-shadow: 0 3px 8px #0003;
+}}
+
+.github-link:hover {{
+    background-color: #E0F2FE;
+    color: #173b65;
+}}
+
+body {{
+    font-family: Arial, sans-serif;
+    background-image: url('/viikko4/static/taustakuva.jpg');
+    background-size: cover;
+    background-position: center 43%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    color: #172033;
+    max-width: 950px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.6;
+}}
+
+
+        h1, h2 {{
+            color: #173b65;
+        }}
+
+        header {{
+            text-align: center;
+            margin-bottom: 30px;
+        }}
+
+        section {{
+            background: #2a5cad;
+            padding: 25px;
+            margin-bottom: 22px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px #0001;
+        }}
+
+        .counter {{
+            font-size: 65px;
+            font-weight: bold;
+   	    color: #FFFFFF;
+            text-align: center;
+        }}
+
+        .readonly {{
+            color: #FFFFFF;
+            font-weight: bold;
+            text-align: center;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        th, td {{
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }}
+
+        th {{
+            background: #e2e8f0;
+        }}
+
+        a {{
+            color: #2455a4;
+        }}
+
+        code {{
+            background: #edf2f7;
+            padding: 3px 6px;
+            border-radius: 4px;
+            overflow-wrap: anywhere;
+        }}
+
+        li {{
+            margin-bottom: 8px;
+        }}
+
+        .status {{
+            color: #FFFFFF;
+            font-weight: bold;
+        }}
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Week 4 - Server B</h1>
+    <p>Linux Administration - Backup and Replication</p>
+</header>
+
+<section>
+    <h2>1. Replicated Visitor Counter</h2>
+
+    <div class="counter">{kaynnit}</div>
+
+    <p class="readonly">READ-ONLY REPLICA</p>
+
+    <p>
+        This counter is read from Server B's local
+        MariaDB database.
+    </p>
+
+    <p>
+        Visiting or refreshing this page does not
+        increment the counter.
+    </p>
+
+    <p>
+        The counter is updated automatically through
+        MariaDB replication from Server A.
+    </p>
+</section>
+
+<section>
+    <h2>2. Server Information</h2>
+
+    <table>
+        <tr>
+            <th>Property</th>
+            <th>Server A</th>
+            <th>Server B</th>
+        </tr>
+        <tr>
+            <td>Hostname</td>
+            <td>joonass</td>
+            <td>joonass2</td>
+        </tr>
+        <tr>
+            <td>Private IP</td>
+            <td>192.168.1.60</td>
+            <td>192.168.1.183</td>
+        </tr>
+        <tr>
+            <td>Public IP</td>
+            <td>195.148.21.75</td>
+            <td>193.166.25.188</td>
+        </tr>
+        <tr>
+            <td>Database</td>
+            <td>MariaDB 11.8.6</td>
+            <td>MariaDB 11.8.6</td>
+        </tr>
+        <tr>
+            <td>Role</td>
+            <td>Primary server</td>
+            <td>Read-only replica</td>
+        </tr>
+    </table>
+
+    <p>
+        <a href="http://195.148.21.75/viikko2/">
+            Server A - Week 2 Counter
+        </a>
+    </p>
+
+    <p>
+        <a href="http://193.166.25.188/viikko4/">
+            Server B - Week 4 Documentation
+        </a>
+    </p>
+</section>
+
+<section>
+    <h2>3. Server B Creation</h2>
+
+    <p>
+        Server B was created as a separate virtual
+        machine in CSC cPouta.
+    </p>
+
+    <p>
+        Nginx, MariaDB and the required Python
+        packages were installed on Server B.
+        The visitor counter database was copied
+        from Server A to Server B before replication
+        was started.
+    </p>
+</section>
+
+<section>
+    <h2>4. Storage and File Locations</h2>
+
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Location</th>
+        </tr>
+        <tr>
+            <td>Server A Flask application</td>
+            <td>/home/ubuntu/viikko2/</td>
+        </tr>
+        <tr>
+            <td>Server B Flask application</td>
+            <td>/home/ubuntu/viikko4/</td>
+        </tr>
+        <tr>
+            <td>Nginx configuration</td>
+            <td>/etc/nginx/sites-available/default</td>
+        </tr>
+        <tr>
+            <td>MariaDB configuration</td>
+            <td>/etc/mysql/mariadb.conf.d/</td>
+        </tr>
+        <tr>
+            <td>Backup directory on B</td>
+            <td>/var/backups/server-a/</td>
+        </tr>
+        <tr>
+            <td>Backup script on B</td>
+            <td>/home/ubuntu/backup.sh</td>
+        </tr>
+        <tr>
+            <td>Backup log</td>
+            <td>/var/backups/server-a/backup.log</td>
+        </tr>
+    </table>
+
+    <p>
+        Backups are stored separately from the live
+        applications. Backup files are protected
+        using Linux ownership and permissions.
+    </p>
+</section>
+
+<section>
+    <h2>5. Linux Users and Database Permissions</h2>
+
+    <p>
+        The ubuntu user is used for server
+        administration and application deployment.
+        Administrative operations use sudo.
+    </p>
+
+    <p>
+        The Flask applications run as systemd services.
+        Database passwords are stored in protected
+        environment files instead of Python source code.
+    </p>
+
+    <ul>
+        <li>
+            visitor_app: SELECT and UPDATE
+            permissions for the counter on Server A.
+        </li>
+        <li>
+            visitor_read: SELECT-only access
+            to the counter on Server B.
+        </li>
+        <li>
+            replicator: replication permission
+            on Server A, restricted to Server B.
+        </li>
+    </ul>
+
+    <p>
+        Server B also uses the MariaDB read_only
+        configuration to prevent ordinary
+        applications from modifying replicated data.
+    </p>
+</section>
+
+<section>
+    <h2>6. Continuous MariaDB Replication</h2>
+
+    <p>
+        MariaDB uses primary-replica replication
+        between the two servers.
+    </p>
+
+    <p>
+        Server A has binary logging enabled,
+        uses server_id 1 and writes counter changes
+        to its binary log.
+    </p>
+
+    <p>
+        Server B uses server_id 2 and receives
+        these changes through its replication
+        connection.
+    </p>
+
+    <p>
+        Replication uses the private network,
+        with MariaDB on TCP port 3306.
+    </p>
+
+    <p>
+        Replication was tested by refreshing
+        Server A's counter page and checking
+        that the same value appeared on Server B.
+    </p>
+
+    <p class="status">
+        Replication test: PASSED
+    </p>
+
+    <p>
+        Replication does not replace historical
+        backups. Accidental deletion or corruption
+        on Server A may also be replicated to B.
+        Separate backups are therefore necessary.
+    </p>
+</section>
+
+<section>
+    <h2>7. Hourly Website Backups</h2>
+
+    <p>
+        Server B uses a Bash script and rsync over SSH
+        to copy website files from Server A.
+    </p>
+
+    <p>
+        The backup script runs every hour using cron.
+        Backups are stored in timestamped directories.
+    </p>
+
+    <p>
+        The five newest successful backup versions
+        are retained. The script records success
+        and failure information in a log file.
+    </p>
+
+    <p>
+        SSH key authentication is used for automatic
+        transfers without interactive passwords.
+    </p>
+
+    <p>
+        Backup schedule:
+        <code>0 * * * *</code>
+    </p>
+
+    <p>
+        Backup destination:
+        <code>/var/backups/server-a/</code>
+    </p>
+</section>
+
+<section>
+    <h2>8. Backup Restoration Test</h2>
+
+    <p>
+        A backup of app.py was restored to
+        /home/ubuntu/restore-test/.
+    </p>
+
+    <p>
+        SHA-256 checksums were compared between
+        the backup and the restored file.
+    </p>
+
+    <p>
+        Both checksums matched, confirming that
+        the restored file was identical.
+    </p>
+
+    <p class="status">
+        File restoration test: PASSED
+    </p>
+</section>
+
+<section>
+    <h2>9. Implementation Tests</h2>
+
+    <table>
+        <tr>
+            <th>Test</th>
+            <th>Result</th>
+        </tr>
+        <tr>
+            <td>Server A website accessible</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>Server B website accessible</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>A increments the counter</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>B reads replicated counter</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>MariaDB replication</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>Manual backup execution</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>File restoration and checksum</td>
+            <td>Passed</td>
+        </tr>
+        <tr>
+            <td>Hourly scheduled backups</td>
+            <td>Pending scheduled-run verification</td>
+        </tr>
+        <tr>
+            <td>Server B reboot test</td>
+            <td>Passed</td>
+        </tr>
+    </table>
+</section>
+
+<section>
+    <h2>10. Problem and Solution</h2>
+
+    <p>
+        One problem encountered during implementation
+        was a failed MariaDB replication connection.
+    </p>
+
+    <p>
+        Server B initially tried to connect to
+        Server A using its public IP address.
+        The connection timed out.
+    </p>
+
+    <p>
+        The problem was solved by configuring
+        replication to use Server A's private
+        IP address, 192.168.1.60.
+    </p>
+</section>
+
+<section>
+    <h2>11. GitHub Repository</h2>
+
+    <p>
+        Source code, backup scripts, configuration
+        examples and installation documentation
+        will be stored in GitHub.
+    </p>
+
+    <p>
+        <a class="github-link"
+   href="https://github.com/joonas-1223/Linux_administration"
+   target="_blank"
+   rel="noopener noreferrer">
+    Linux Administration - GitHub
+</a>
+    </p>
+
+    <p>
+        Passwords, private SSH keys and database
+        backups must not be published.
+    </p>
+</section>
+
+</body>
+</html>
+"""
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=8001)
